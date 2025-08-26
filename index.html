@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Recibos Airbnb</title>
+    <!-- Incluindo a biblioteca html2canvas para gerar a imagem do recibo -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #007BFF;
+            --secondary-color: #f8f9fa;
+            --text-color: #333;
+            --border-color: #dee2e6;
+            --success-color: #28a745;
+            --background-color: #e9ecef;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .screen {
+            padding: 20px 25px;
+            display: none; /* Esconde as telas por padrão */
+        }
+
+        .screen.active {
+            display: block; /* Mostra a tela ativa */
+        }
+        
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        
+        .form-group input[type="number"] {
+            font-weight: bold;
+        }
+
+        .services-fieldset {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 25px;
+        }
+
+        .services-fieldset legend {
+            font-weight: 600;
+            padding: 0 10px;
+            color: var(--primary-color);
+        }
+
+        .total-display {
+            margin-top: 25px;
+            padding: 15px;
+            background-color: var(--secondary-color);
+            border: 1px dashed var(--primary-color);
+            border-radius: 5px;
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .btn.secondary {
+            background-color: #6c757d;
+        }
+        .btn.secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn.success {
+            background-color: var(--success-color);
+        }
+        .btn.success:hover {
+            background-color: #218838;
+        }
+        
+        .btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Estilos do Recibo */
+        #receipt-preview {
+            border: 1px solid #ccc;
+            padding: 25px;
+            background-color: #fff;
+            margin-bottom: 20px;
+        }
+
+        #receipt-preview h2 {
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+        }
+
+        .receipt-info p {
+            margin: 5px 0;
+            line-height: 1.6;
+        }
+
+        .receipt-info strong {
+            display: inline-block;
+            width: 100px;
+        }
+
+        .receipt-table {
+            width: 100%;
+            margin-top: 25px;
+            border-collapse: collapse;
+        }
+
+        .receipt-table th, .receipt-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .receipt-table th {
+            background-color: var(--secondary-color);
+            font-weight: bold;
+        }
+
+        .receipt-table .text-right {
+            text-align: right;
+        }
+
+        .receipt-total {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 1.4em;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .receipt-total span {
+             background-color: var(--secondary-color);
+             padding: 10px 15px;
+             border-radius: 5px;
+        }
+
+        .receipt-date {
+            text-align: right;
+            margin-top: 30px;
+            font-style: italic;
+            color: #666;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        /* Classe para esconder elementos */
+        .hidden {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Tela 1: Formulário de Dados -->
+        <div id="form-screen" class="screen active">
+            <h1>Gerador de Recibos</h1>
+            <form id="receipt-form">
+                <div class="form-group">
+                    <label for="client-name">Nome do Cliente</label>
+                    <input type="text" id="client-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="property-name">Nome/Endereço da Propriedade</label>
+                    <input type="text" id="property-name" required>
+                </div>
+
+                <fieldset class="services-fieldset">
+                    <legend>Serviços Prestados</legend>
+                    <div class="form-group">
+                        <label for="service-cleaning">Limpeza para Airbnb</label>
+                        <input type="number" id="service-cleaning" value="160.00" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="service-checkout">Checkout, Vistoria e Reposições</label>
+                        <input type="number" id="service-checkout" value="40.00" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="service-laundry">Lavanderia</label>
+                        <input type="number" id="service-laundry" value="50.00" step="0.01" min="0" required>
+                    </div>
+                </fieldset>
+                
+                <div class="total-display">
+                    Total: <span id="total-value">R$ 250,00</span>
+                </div>
+
+                <button type="submit" class="btn">Gerar Recibo</button>
+            </form>
+        </div>
+
+        <!-- Tela 2: Visualização e Compartilhamento -->
+        <div id="receipt-screen" class="screen">
+            <h1>Recibo Pronto</h1>
+
+            <div id="receipt-preview">
+                <h2>RECIBO DE SERVIÇOS</h2>
+                <div class="receipt-info">
+                    <p><strong>Cliente:</strong> <span id="receipt-client-name"></span></p>
+                    <p><strong>Propriedade:</strong> <span id="receipt-property-name"></span></p>
+                </div>
+                <table class="receipt-table">
+                    <thead>
+                        <tr>
+                            <th>Serviço</th>
+                            <th class="text-right">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receipt-services-body">
+                        <!-- Linhas de serviço serão inseridas aqui via JS -->
+                    </tbody>
+                </table>
+                <div class="receipt-total">
+                    Valor Total: <span id="receipt-total-value"></span>
+                </div>
+                <div class="receipt-date">
+                    Emitido em: <span id="receipt-date"></span>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="share-btn" class="btn success">Compartilhar Recibo</button>
+                <button id="download-btn" class="btn secondary">Baixar Imagem</button>
+                <button id="back-btn" class="btn">Voltar e Editar</button>
+            </div>
+             <p id="share-error" class="hidden" style="color: red; text-align: center; margin-top: 10px;">O compartilhamento nativo não é suportado neste navegador. Por favor, baixe a imagem e compartilhe manualmente.</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Seleção de Elementos do DOM
+            const formScreen = document.getElementById('form-screen');
+            const receiptScreen = document.getElementById('receipt-screen');
+            const receiptForm = document.getElementById('receipt-form');
+            
+            const serviceInputs = [
+                document.getElementById('service-cleaning'),
+                document.getElementById('service-checkout'),
+                document.getElementById('service-laundry')
+            ];
+            const totalValueSpan = document.getElementById('total-value');
+
+            const backBtn = document.getElementById('back-btn');
+            const shareBtn = document.getElementById('share-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const shareErrorMsg = document.getElementById('share-error');
+
+            // Função para formatar valores como moeda BRL
+            const formatCurrency = (value) => {
+                return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            };
+
+            // Função para calcular e atualizar o total
+            const updateTotal = () => {
+                const total = serviceInputs.reduce((sum, input) => {
+                    const value = parseFloat(input.value) || 0;
+                    return sum + value;
+                }, 0);
+                totalValueSpan.textContent = formatCurrency(total);
+            };
+
+            // Adiciona listeners para os campos de serviço para recalcular o total
+            serviceInputs.forEach(input => input.addEventListener('input', updateTotal));
+
+            // Lógica do Formulário
+            receiptForm.addEventListener('submit', (event) => {
+                event.preventDefault(); // Impede o envio padrão do formulário
+
+                // Dados do formulário
+                const clientName = document.getElementById('client-name').value;
+                const propertyName = document.getElementById('property-name').value;
+                const cleaningValue = parseFloat(serviceInputs[0].value) || 0;
+                const checkoutValue = parseFloat(serviceInputs[1].value) || 0;
+                const laundryValue = parseFloat(serviceInputs[2].value) || 0;
+                const totalValue = cleaningValue + checkoutValue + laundryValue;
+
+                // Preenche os dados no recibo
+                document.getElementById('receipt-client-name').textContent = clientName;
+                document.getElementById('receipt-property-name').textContent = propertyName;
+                
+                const servicesBody = document.getElementById('receipt-services-body');
+                servicesBody.innerHTML = ''; // Limpa a tabela antes de adicionar novos itens
+
+                if (cleaningValue > 0) {
+                    servicesBody.innerHTML += `<tr><td>Limpeza para Airbnb</td><td class="text-right">${formatCurrency(cleaningValue)}</td></tr>`;
+                }
+                if (checkoutValue > 0) {
+                    servicesBody.innerHTML += `<tr><td>Checkout, Vistoria e Reposições</td><td class="text-right">${formatCurrency(checkoutValue)}</td></tr>`;
+                }
+                if (laundryValue > 0) {
+                    servicesBody.innerHTML += `<tr><td>Lavanderia</td><td class="text-right">${formatCurrency(laundryValue)}</td></tr>`;
+                }
+
+                document.getElementById('receipt-total-value').textContent = formatCurrency(totalValue);
+                document.getElementById('receipt-date').textContent = new Date().toLocaleDateString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                });
+
+                // Troca de telas
+                formScreen.classList.remove('active');
+                receiptScreen.classList.add('active');
+            });
+            
+            // Função para gerar a imagem do recibo
+            const generateReceiptImage = async (callback) => {
+                const receiptElement = document.getElementById('receipt-preview');
+                const buttons = [shareBtn, downloadBtn];
+                
+                // Desabilita os botões durante a geração
+                buttons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.textContent = 'Gerando...';
+                });
+                
+                try {
+                    const canvas = await html2canvas(receiptElement, { scale: 2 }); // Aumenta a escala para melhor qualidade
+                    callback(canvas);
+                } catch (error) {
+                    console.error('Erro ao gerar a imagem do recibo:', error);
+                    alert('Ocorreu um erro ao gerar a imagem. Tente novamente.');
+                } finally {
+                    // Reabilita os botões
+                    shareBtn.disabled = false;
+                    shareBtn.textContent = 'Compartilhar Recibo';
+                    downloadBtn.disabled = false;
+                    downloadBtn.textContent = 'Baixar Imagem';
+                }
+            };
+            
+            // Lógica do Botão de Compartilhar
+            shareBtn.addEventListener('click', async () => {
+                if (!navigator.share) {
+                    shareErrorMsg.classList.remove('hidden');
+                    return;
+                }
+                
+                await generateReceiptImage(canvas => {
+                    canvas.toBlob(async (blob) => {
+                        const clientName = document.getElementById('client-name').value.trim();
+                        const fileName = `recibo-${clientName.replace(/\s+/g, '-')}.png`;
+                        const file = new File([blob], fileName, { type: 'image/png' });
+                        
+                        const shareData = {
+                            files: [file],
+                            title: `Recibo de Serviços - ${clientName}`,
+                            text: `Olá, segue o recibo dos serviços prestados na propriedade.`,
+                        };
+                        
+                        if (navigator.canShare && navigator.canShare(shareData)) {
+                            try {
+                                await navigator.share(shareData);
+                            } catch (error) {
+                                console.log('Compartilhamento cancelado ou falhou', error);
+                            }
+                        } else {
+                             shareErrorMsg.classList.remove('hidden');
+                        }
+                    }, 'image/png');
+                });
+            });
+
+            // Lógica do Botão de Download
+            downloadBtn.addEventListener('click', async () => {
+                await generateReceiptImage(canvas => {
+                    const clientName = document.getElementById('client-name').value.trim();
+                    const fileName = `recibo-${clientName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0,10)}.png`;
+                    
+                    const link = document.createElement('a');
+                    link.download = fileName;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            });
+
+            // Lógica do Botão de Voltar
+            backBtn.addEventListener('click', () => {
+                receiptScreen.classList.remove('active');
+                formScreen.classList.add('active');
+                shareErrorMsg.classList.add('hidden');
+            });
+            
+            // Inicia o cálculo do total ao carregar a página
+            updateTotal();
+        });
+    </script>
+</body>
+</html>
