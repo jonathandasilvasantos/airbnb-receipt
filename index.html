@@ -90,6 +90,49 @@
             color: var(--primary-color);
         }
 
+        .custom-service {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+
+        .custom-service input[type="text"] {
+            flex: 2;
+        }
+
+        .custom-service input[type="number"] {
+            flex: 1;
+        }
+
+        .remove-service {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .add-service-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
         .total-display {
             margin-top: 25px;
             padding: 15px;
@@ -220,6 +263,26 @@
             display: none;
         }
 
+        .service-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .service-label {
+            flex: 2;
+        }
+
+        .service-value {
+            flex: 1;
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .service-actions {
+            flex: 0 0 30px;
+        }
     </style>
 </head>
 <body>
@@ -252,6 +315,14 @@
                         <label for="service-laundry">Lavanderia</label>
                         <input type="number" id="service-laundry" value="50.00" step="0.01" min="0" required>
                     </div>
+                    
+                    <div id="custom-services-container">
+                        <!-- Serviços personalizados serão adicionados aqui -->
+                    </div>
+                    
+                    <button type="button" id="add-service-btn" class="add-service-btn">
+                        + Adicionar Serviço
+                    </button>
                 </fieldset>
                 
                 <div class="total-display">
@@ -313,6 +384,8 @@
                 document.getElementById('service-laundry')
             ];
             const totalValueSpan = document.getElementById('total-value');
+            const customServicesContainer = document.getElementById('custom-services-container');
+            const addServiceBtn = document.getElementById('add-service-btn');
 
             const backBtn = document.getElementById('back-btn');
             const shareBtn = document.getElementById('share-btn');
@@ -326,15 +399,50 @@
 
             // Função para calcular e atualizar o total
             const updateTotal = () => {
-                const total = serviceInputs.reduce((sum, input) => {
+                let total = serviceInputs.reduce((sum, input) => {
                     const value = parseFloat(input.value) || 0;
                     return sum + value;
                 }, 0);
+                
+                // Adicionar serviços personalizados ao total
+                const customServices = document.querySelectorAll('.custom-service');
+                customServices.forEach(service => {
+                    const valueInput = service.querySelector('input[type="number"]');
+                    const value = parseFloat(valueInput.value) || 0;
+                    total += value;
+                });
+                
                 totalValueSpan.textContent = formatCurrency(total);
             };
 
             // Adiciona listeners para os campos de serviço para recalcular o total
             serviceInputs.forEach(input => input.addEventListener('input', updateTotal));
+            
+            // Adicionar novo serviço personalizado
+            addServiceBtn.addEventListener('click', () => {
+                const serviceDiv = document.createElement('div');
+                serviceDiv.className = 'custom-service';
+                serviceDiv.innerHTML = `
+                    <input type="text" placeholder="Nome do serviço" required>
+                    <input type="number" placeholder="0.00" step="0.01" min="0" required>
+                    <button type="button" class="remove-service">✕</button>
+                `;
+                
+                customServicesContainer.appendChild(serviceDiv);
+                
+                // Adicionar listener para o novo campo de valor
+                const valueInput = serviceDiv.querySelector('input[type="number"]');
+                valueInput.addEventListener('input', updateTotal);
+                
+                // Adicionar listener para o botão de remover
+                const removeBtn = serviceDiv.querySelector('.remove-service');
+                removeBtn.addEventListener('click', () => {
+                    serviceDiv.remove();
+                    updateTotal();
+                });
+                
+                updateTotal();
+            });
 
             // Lógica do Formulário
             receiptForm.addEventListener('submit', (event) => {
@@ -346,8 +454,7 @@
                 const cleaningValue = parseFloat(serviceInputs[0].value) || 0;
                 const checkoutValue = parseFloat(serviceInputs[1].value) || 0;
                 const laundryValue = parseFloat(serviceInputs[2].value) || 0;
-                const totalValue = cleaningValue + checkoutValue + laundryValue;
-
+                
                 // Preenche os dados no recibo
                 document.getElementById('receipt-client-name').textContent = clientName;
                 document.getElementById('receipt-property-name').textContent = propertyName;
@@ -364,6 +471,23 @@
                 if (laundryValue > 0) {
                     servicesBody.innerHTML += `<tr><td>Lavanderia</td><td class="text-right">${formatCurrency(laundryValue)}</td></tr>`;
                 }
+                
+                // Adicionar serviços personalizados
+                const customServices = document.querySelectorAll('.custom-service');
+                let totalValue = cleaningValue + checkoutValue + laundryValue;
+                
+                customServices.forEach(service => {
+                    const labelInput = service.querySelector('input[type="text"]');
+                    const valueInput = service.querySelector('input[type="number"]');
+                    
+                    const label = labelInput.value.trim();
+                    const value = parseFloat(valueInput.value) || 0;
+                    
+                    if (label && value > 0) {
+                        servicesBody.innerHTML += `<tr><td>${label}</td><td class="text-right">${formatCurrency(value)}</td></tr>`;
+                        totalValue += value;
+                    }
+                });
 
                 document.getElementById('receipt-total-value').textContent = formatCurrency(totalValue);
                 document.getElementById('receipt-date').textContent = new Date().toLocaleDateString('pt-BR', {
